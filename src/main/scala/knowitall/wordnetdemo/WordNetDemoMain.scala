@@ -9,14 +9,16 @@ object WordNetDemoMain {
   import java.net.URL
 
   import edu.mit.jwi.Dictionary
-  import edu.mit.jwi.item.{POS, Pointer, ISynsetID}
+  import edu.mit.jwi.item.{POS, Pointer, ISynsetID, ISynset}
   import edu.mit.jwi.morph.WordnetStemmer
   
   import scala.collection.JavaConverters._
+  import scala.collection.mutable.Buffer
 
   import edu.washington.cs.knowitall.tool.chunk.{OpenNlpChunker, ChunkedToken}
 
-  val usage = "wndemo [-mh] [-mx] sentence index1 index2"
+  val usage = "wndemo [-s] [-mh] sentence index1 index2"
+  val defaultSense = 0;
   type OptionMap = Map[Symbol, Any]
 
   val dict = fetchDictionary()
@@ -24,8 +26,8 @@ object WordNetDemoMain {
 
   def main(args: Array[String]) {
 
+    // parse args
     val argsMap = mapArgs(args)
-    
     val sentence = argsMap.get('sentence).get.toString()
     val ind1 = argsMap.get('index1).get.asInstanceOf[Int]
     val ind2 = argsMap.get('index2).get.asInstanceOf[Int]
@@ -36,6 +38,8 @@ object WordNetDemoMain {
     // nounPhrase contains only nouns, but no proper nouns. 
     val nounPhrase = tokens.filter(t => t.postag.head == 'N' && 
                                         t.postag != "NNP")
+                                        
+    // TODO: this will go over all the nouns - we don't want this. 
     for(noun <- nounPhrase) {
       // get stem
       val stemmedWord = stem(noun.string, 0)
@@ -58,27 +62,46 @@ object WordNetDemoMain {
     }
   }
 
-  /*
-  def hypernymStream(word: String): Stream[Set[ISynsetID]] = {
-    def loop(initial: Set[ISynsetID]): Stream[Set[ISynsetID]] = {
-      initial #:: loop(getHypernymSet(initial))
-    }
-  } 
-  
-  def getHypernymSet(hypernyms: Set[ISynsetID]): Set[ISynsetID] = {
-    var returnSet: Set[ISynsetID] = Set()
-    // hypernyms.foreach()
+  /* Goes from a string word to the synset of its nth sense. 
+   * 
+   * @param str the word to query in Wordnet.
+   * @param n the sense to look up.
+   * @return the synset of str's nth sense. 
+   */
+  def stringToNthSynset(str: String, n: Int): ISynset = {
+    val strStem = stem(str, n)
+    val idxWord = dict.getIndexWord(strStem, POS.NOUN)
+    val wordID = idxWord.getWordIDs.get(n) 
+    val wnWord = dict.getWord(wordID)
+    wnWord.getSynset
   }
-  */
   
-  /* Gets a buffer of hypernyms for a word.
+  /* Goes from a synset to a Buffer of its hypernyms (which are
+   * also synsets).
+   * 
+   * @param synset the synset to get hypernyms for.
+   */
+  def synsetToHypernyms(synset: ISynset): Buffer[ISynset] = {
+    val hypernymIDs = synset.getRelatedSynsets(Pointer.HYPERNYM).asScala
+    hypernymIDs.map(sid => dict.getSynset(sid))
+  }
+  
+  /*
+   * 
+   */
+  def hypernymStream(synsets: Buffer[ISynset]): Stream[Buffer[ISynset]] = {
+    val hypernyms = synsets flatMap synsetToHypernyms
+    synsets #:: hypernymStream(hypernyms)
+  }
+  
+  /* Gets a buffer of synsetIDs corresponding to hypernym sets for word.
    * 
    * @requires nth sense of word must be defined in Wordnet.
    * @param word the word to find the hypernyms of
    * @param nthSense defines which sense (defn) to get the hypernyms of
    * @returns a Buffer of hypernyms for the nthSense of word.
    */
-  def getHypernyms(word: String, nthSense: Int): scala.collection.mutable.Buffer[ISynsetID] = {
+  def getHypernyms(word: String, nthSense: Int): Buffer[ISynsetID] = {
     // fetch synset
     val idxWord = dict.getIndexWord(word, POS.NOUN)
     val wordID = idxWord.getWordIDs.get(nthSense) 
@@ -119,10 +142,10 @@ object WordNetDemoMain {
     def nextOption(map: OptionMap, list: List[String]): OptionMap = {
       list match {
         case Nil => map
+        case "-s" :: value :: tail =>
+          nextOption(map ++ Map('s -> value.toInt), tail)
         case "-mh" :: value :: tail =>
           nextOption(map ++ Map('mh -> value.toInt), tail)
-        case "-mx" :: value :: tail =>
-          nextOption(map ++ Map('mx -> value.toInt), tail)
         case string :: index1 :: index2 :: tail =>
           nextOption(
             map ++ Map('sentence -> string) ++
