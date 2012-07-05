@@ -11,18 +11,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
-
-  <repositories>
-    <repository>
-      <id>knowitall-public</id>
-      <url>http://knowitall.cs.washington.edu/maven2</url>
-    </repository>
-    <repository>
-      <id>knowitall-snapshot</id>
-      <url>http://knowitall.cs.washington.edu/maven2-snapshot</url>
-    </repository>
-  </repositories>
-
+  
   <dependencies>
     <!-- logback dependencies -->
     <dependency>
@@ -53,10 +42,15 @@
       <artifactId>reverb-core</artifactId>
       <version>1.4.0</version>
     </dependency>
-    <dependency>
+     <dependency>
       <groupId>edu.washington.cs.knowitall.nlptools</groupId>
-      <artifactId>nlptools-core_2.9.2</artifactId>
+      <artifactId>nlptools-chunk-opennlp_2.9.2</artifactId>
       <version>2.2.0</version>
+    </dependency>
+    <dependency>
+      <groupId>edu.washington.cs.knowitall</groupId>
+      <artifactId>reverb-core</artifactId>
+      <version>1.4.0</version>
     </dependency>
     <!-- jwi -->
     <dependency>
@@ -74,7 +68,7 @@
         <plugin>
           <groupId>net.alchim31.maven</groupId>
           <artifactId>scala-maven-plugin</artifactId>
-          <version>3.0.2</version>
+          <version>${project.version}</version>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -83,7 +77,7 @@
       <plugin>
         <groupId>net.alchim31.maven</groupId>
         <artifactId>scala-maven-plugin</artifactId>
-        <version>3.0.2</version>
+        <version>${project.version}</version>
       </plugin>
     </plugins>
   </build>
