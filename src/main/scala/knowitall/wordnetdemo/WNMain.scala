@@ -3,26 +3,22 @@ package knowitall.wordnetdemo
 import knowitall.tool.WNDictionary
 
 import edu.washington.cs.knowitall.extractor.ReVerbExtractor
-import edu.washington.cs.knowitall.extractor.ReVerbRelationExtractor
 import edu.washington.cs.knowitall.nlp.OpenNlpSentenceChunker;
+import edu.washington.cs.knowitall.nlp.extraction.ChunkedBinaryExtraction;
 
 import edu.washington.cs.knowitall.tool.chunk.{ OpenNlpChunker, ChunkedToken }
 import edu.mit.jwi.morph.WordnetStemmer
 
 object WNMain {
-
-
   
-  val usage = "wndemo [-s] [-mh] sentence index1 index2"
+  val usage = "hypernyms [-s] [-mh] sentence"
   val defaultSense = 0;
   type OptionMap = Map[Symbol, Any]
 
-  val wnHelper = new WordNetDemoMain
   val dict = WNDictionary.fetchDictionary()
   val stemmer = new WordnetStemmer(dict)
   val reverb = new ReVerbExtractor()
 
-  
   def main(args: Array[String]) {
 
     // parse args
@@ -30,11 +26,9 @@ object WNMain {
     val sentence = argsMap.get('sentence).get.toString
     val senses = argsMap.get('s).get.asInstanceOf[Int]
     val hypHeight = argsMap.get('mh).get.asInstanceOf[Int]
-    val ind1 = argsMap.get('index1).get.asInstanceOf[Int]
-    val ind2 = argsMap.get('index2).get.asInstanceOf[Int]
 
-    val chunker = new OpenNlpChunker
-    val tokens = chunker.chunk(sentence)
+    val reverb = new ReVerbExtractor
+    val tokens = reverb.extractFromString(sentence)
 
     //TODO: tokens is a Seq[ChunkedToken] and each of these tokens has a POS tag. 
     //      We want to get only the ones that are noun phrases, but not proper nouns.
@@ -43,12 +37,12 @@ object WNMain {
     
     // nounPhrase contains only nouns, but no proper nouns. 
     val nounPhrase = tokens.filter(t => t.postag.head == 'N' &&
-      t.postag != "NNP")
+      t.postag != "NNP" && t.postag != "NNPS")
 
     // TODO: this will go over all the nouns - we don't want this. 
     for (noun <- nounPhrase) {
-      
-      wnHelper.stringToHypernymStream(noun.string, 0)
+
+      jwi.stringToHypernymStream(noun.string, 0)
 
       // print them out
       for (sid <- hypernyms) {
