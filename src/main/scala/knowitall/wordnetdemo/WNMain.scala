@@ -42,11 +42,17 @@ object WNMain {
     def printStream(tokens: Seq[PostaggedToken]): Unit = {
       
       val stream = JwiTools.posTokensToHypernymStream(tokens, sense) take hypHeight
+      if (stream == Stream(Set())) {
+        println("Noun not found.")
+        return
+      }
+      
       for (i <- 1 to hypHeight - 1) {
         print("Height "+ i +": ")
         stream(i).foreach(synset => {
           val strings = synset.getWords.asScala.map(s => s.getLemma)
           print(strings.mkString(", ").replace("_", " "))
+          print("; ")
         })
         println()
       }

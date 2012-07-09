@@ -24,13 +24,14 @@ object JwiTools {
   val stemmer = new WordnetStemmer(dict)
   
   /** Takes a sequence of postagged tokens, determines the subject from the
-   * tokens, and returns a stream of the subject's nth sense from WordNet.
-   * 
-   * @requires posTokens contains a subject that is in WordNet with an nth noun sense.
-   * @param posTokens a sequence of postagged tokens containing a noun phrase.
-   * @param n which sense of the subject to look up in WordNet.
-   * @return a stream of the subject's nth sense from WordNet. 
-   */
+    * tokens, and returns a stream of the subject's nth sense from WordNet.
+    * If not found, returns a Stream containing an empty Set. 
+    * 
+    * @requires posTokens contains a subject that is in WordNet with an nth noun sense.
+    * @param posTokens a sequence of postagged tokens containing a noun phrase.
+    * @param n which sense of the subject to look up in WordNet.
+    * @return a stream of the subject's nth sense from WordNet. 
+    */
   def posTokensToHypernymStream(posTokens: Seq[PostaggedToken], n: Int): Stream[Set[ISynset]] = {
     
     /* Takes a sequence of POS-tagged tokens and finds the subject noun.
@@ -80,39 +81,58 @@ object JwiTools {
        * @returns the longest noun in toSearch that is in WordNet. 
        */
       def findNoun(toSearch: Seq[PostaggedToken]): String = {
+        if (toSearch == Nil) return ""
+        // search for word in WordNet
         val strings = toSearch.map(token => token.string)
         val stemmedWord = stem(strings.mkString(" "), n)
-        val idxWord = dict.getIndexWord(stemmedWord, POS.NOUN)
-        if (idxWord == null) {
-          // wasn't found in WordNet. if toSearch is a single noun n
-          // followed by "of" and more tokens, search WordNet for n;
-          // else search WordNet for toSearch's tail.
-          if (toSearch(1).postag == "IN") findNoun(List(toSearch(0))) 
-          else findNoun(toSearch.tail)
-        } else stemmedWord
+        
+        if (stemmedWord == "") {
+          // was not found by stemmer. if toSearch is a single noun n followed
+          // by "of" and more tokens, search WordNet for n; else search WordNet
+          // for toSearch's tail. 
+          if (toSearch.length > 1 && toSearch(1).postag == "IN") {
+            findNoun(List(toSearch(0)))
+          } else {
+            findNoun(toSearch.tail)
+          }
+        } else {
+          // look for stemmedWord in WordNet
+          val idxWord = dict.getIndexWord(stemmedWord, POS.NOUN)
+          if (idxWord != null) stemmedWord
+          else {
+            // word not found in WordNet. do the same check for "of"
+            // described above
+            if (toSearch.length > 1 && toSearch(1).postag == "IN") {
+              findNoun(List(toSearch(0)))
+            } else {
+              findNoun(toSearch.tail)
+            }
+          }
+        }
       }
-    
       findNoun(preprocessTokens(tokens))
     }
     
     val nounSubject: String = getNounSubject(posTokens)
-    stringToHypernymStream(nounSubject, n)
+    
+    return if (nounSubject == "") Stream(Set()) 
+           else stringToHypernymStream(nounSubject, n)
   }
   
   /** Goes from a string word to a hypernym stream of the word's nth noun sense.
-   * 
-   * For example, inputting "dog" and 0 would return a stream where the 0th
-   * index would hold the synset s1 for the first meaning of "dog", the 1st index
-   * would hold the hypernyms s2 of s1, the 2nd index would hold the hypernyms
-   * of s2, and so on. 
-   * 
-   * @requires str exists in WordNet with an nth noun sense. 
-   * @param str the noun to look up in WordNet
-   * @param n the sense to look up
-   * @returns a Stream of Sets of Synsets i where each i is a hypernym
-   *          of a ISynset in the argument Set, and each level in the
-   *          stream returns one deeper level in the hypernym hierarchy. 
-   */
+    * 
+    * For example, inputting "dog" and 0 would return a stream where the 0th
+    * index would hold the synset s1 for the first meaning of "dog", the 1st index
+    * would hold the hypernyms s2 of s1, the 2nd index would hold the hypernyms
+    * of s2, and so on. 
+    * 
+    * @requires str exists in WordNet with an nth noun sense. 
+    * @param str the noun to look up in WordNet
+    * @param n the sense to look up
+    * @returns a Stream of Sets of Synsets i where each i is a hypernym
+    *          of a ISynset in the argument Set, and each level in the
+    *          stream returns one deeper level in the hypernym hierarchy. 
+    */
   def stringToHypernymStream(str: String, n: Int): Stream[Set[ISynset]] = {
     val stemmedStr = stem(str, 0)
     val nthSynset = stringToNthSynset(stemmedStr, n)
@@ -122,22 +142,22 @@ object JwiTools {
   }
   
   /** Gets a stream of hypernym sets. 
-   * 
-   * @param synsets a Set of Synsets.
-   * @returns a Stream of Set of Synsets where each Synset is a hypernym
-   *          of a Synset in the argument set, and each level in the
-   *          stream returns one deeper level in the hypernym hierarchy. 
-   */
+    * 
+    * @param synsets a Set of Synsets.
+    * @returns a Stream of Set of Synsets where each Synset is a hypernym
+    *          of a Synset in the argument set, and each level in the
+    *          stream returns one deeper level in the hypernym hierarchy. 
+    */
   def hypernymStream(synsets: Set[ISynset]): Stream[Set[ISynset]] = {
     val hypernyms = synsets flatMap synsetToHypernyms
     synsets #:: hypernymStream(hypernyms)
   }
 
   /** Goes from a synset to a Set of its hypernyms (which are
-   * also synsets).
-   * 
-   * @param synset the synset to get hypernyms for.
-   */
+    * also synsets).
+    * 
+    * @param synset the synset to get hypernyms for.
+    */
   def synsetToHypernyms(synset: ISynset): Set[ISynset] = {
     val hypernymIDs = synset.getRelatedSynsets(Pointer.HYPERNYM).asScala.toSet
     
@@ -145,13 +165,13 @@ object JwiTools {
     hypernymIDs.map(sid => dict.getSynset(sid))
   }
   
-    /** Goes from a string word to the synset of its nth noun sense. 
-   * 
-   * @requires str is a noun in WordNet with an nth sense. 
-   * @param str the word to query in Wordnet.
-   * @param n the sense to look up.
-   * @return the synset of str's nth sense. 
-   */
+  /** Goes from a string word to the synset of its nth noun sense. 
+    * 
+    * @requires str is a noun in WordNet with an nth sense. 
+    * @param str the word to query in Wordnet.
+    * @param n the sense to look up.
+    * @return the synset of str's nth sense. 
+    */
   def stringToNthSynset(str: String, n: Int): ISynset = {
     val strStem = stem(str, 0)
     val idxWord = dict.getIndexWord(strStem, POS.NOUN)
@@ -161,14 +181,15 @@ object JwiTools {
     wnWord.getSynset
   }
   
-  /** Find a word's corresponding WordNet stem.
-   * 
-   * @requires word must be a noun in the WordNet dictionary.
-   * @param word the word to find the stem of.
-   * @param n which stem to return - set this to 0, rarely will you want others.
-   * @return word's nth WordNet stem.
-   */
+  /** Find a word's corresponding WordNet stem. 
+    * 
+    * @requires word must be a noun in the WordNet dictionary.
+    * @param word the word to find the stem of.
+    * @param n which stem to return - set this to 0, rarely will you want others.
+    * @return If word's nth WordNet stem exists, returns it; else empty string.
+    */
   def stem(word: String, n: Int): String = {
-    return stemmer.findStems(word, POS.NOUN).asScala(n)
+    val stems = stemmer.findStems(word, POS.NOUN).asScala
+    return if (stems.length > n) stems(n) else "" 
   }
 }
