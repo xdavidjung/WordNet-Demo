@@ -61,7 +61,8 @@ object JwiTools {
         // remove everything after some non-"of" preposition
         val indexOfNonOfPrep = toProcess.findIndexOf(t => 
             t.postag == "IN" && t.string != "of")
-        val noNonOfPrep = toProcess.take(indexOfNonOfPrep)
+        val noNonOfPrep = if (indexOfNonOfPrep == -1) toProcess
+                          else toProcess.take(indexOfNonOfPrep)
       
         // remove everything but nouns, ofs, and 's
         val nounCDPrepPosOnly = noNonOfPrep.filter(t => 
@@ -79,7 +80,8 @@ object JwiTools {
        * @returns the longest noun in toSearch that is in WordNet. 
        */
       def findNoun(toSearch: Seq[PostaggedToken]): String = {
-        val stemmedWord: String = stem(toSearch.mkString(" "), 0)
+        val strings = toSearch.map(token => token.string)
+        val stemmedWord = stem(strings.mkString(" "), 0)
         val idxWord = dict.getIndexWord(stemmedWord, POS.NOUN)
         if (idxWord == null) {
           // wasn't found in WordNet. if toSearch is a single noun n

@@ -1,62 +1,58 @@
 package knowitall.wordnetdemo
 
-import knowitall.tool.WNDictionary
-
+import scala.collection.JavaConverters._
+import knowitall.tool.{ WNDictionary, Converter }
 import edu.washington.cs.knowitall.extractor.ReVerbExtractor
-import edu.washington.cs.knowitall.nlp.OpenNlpSentenceChunker;
-import edu.washington.cs.knowitall.nlp.extraction.ChunkedBinaryExtraction;
-
+import edu.washington.cs.knowitall.nlp.OpenNlpSentenceChunker
+import edu.washington.cs.knowitall.nlp.extraction.ChunkedBinaryExtraction
 import edu.washington.cs.knowitall.tool.chunk.{ OpenNlpChunker, ChunkedToken }
+import edu.washington.cs.knowitall.tool.postag.PostaggedToken
 import edu.mit.jwi.morph.WordnetStemmer
+
 
 object WNMain {
   
-  val usage = "hypernyms [-s] [-mh] sentence"
-  val defaultSense = 0;
+  val usage = "[-s] [-mh] [-a1] [-a2] sentence"
+  val defaultSense = 0
+  val defaultHeight = 3
   type OptionMap = Map[Symbol, Any]
 
   val dict = WNDictionary.fetchDictionary()
   val stemmer = new WordnetStemmer(dict)
   val reverb = new ReVerbExtractor()
-
+  
   def main(args: Array[String]) {
 
     // parse args
     val argsMap = mapArgs(args)
     val sentence = argsMap.get('sentence).get.toString
-    val senses = argsMap.get('s).get.asInstanceOf[Int]
-    val hypHeight = argsMap.get('mh).get.asInstanceOf[Int]
+    val sense = if (!argsMap.contains('s)) defaultSense
+                else argsMap.get('s).get.asInstanceOf[Int]
+    val hypHeight = if (!argsMap.contains('mh)) defaultHeight 
+                    else argsMap.get('mh).get.asInstanceOf[Int] + 1
+    val arg1 = argsMap.contains('a1)
+    val arg2 = argsMap.contains('a2)
 
     val reverb = new ReVerbExtractor
-    val tokens = reverb.extractFromString(sentence)
+    val tokens = reverb.extractFromString(sentence).iterator.next
 
-    //TODO: tokens is a Seq[ChunkedToken] and each of these tokens has a POS tag. 
-    //      We want to get only the ones that are noun phrases, but not proper nouns.
-    //      Then for each of these noun phrases, we want to search for the longest
-    //      combination of words that is in WordNet, tiebreaking by largest offset.
-    
-    // nounPhrase contains only nouns, but no proper nouns. 
-    val nounPhrase = tokens.filter(t => t.postag.head == 'N' &&
-      t.postag != "NNP" && t.postag != "NNPS")
-
-    // TODO: this will go over all the nouns - we don't want this. 
-    for (noun <- nounPhrase) {
-
-      jwi.stringToHypernymStream(noun.string, 0)
-
-      // print them out
-      for (sid <- hypernyms) {
-        var words = dict.getSynset(sid).getWords
-        print(sid + " {")
-        var iterator = words.iterator
-        while (iterator.hasNext) {
-          print(iterator.next.getLemma)
-          if (iterator.hasNext)
-            print(", ")
-        }
-        println("}")
+    /* Takes a sequence of postagged tokens and prints out the hypernym
+     * stream.
+     */
+    def printStream(tokens: Seq[PostaggedToken]): Unit = {
+      
+      val stream = JwiTools.posTokensToHypernymStream(tokens, sense) take hypHeight
+      for (i <- 1 to hypHeight - 1) {
+        print("Height "+ i +": ")
+        stream(i).foreach(synset => {
+          val strings = synset.getWords.asScala.map(s => s.getLemma)
+          print(strings.mkString(", ").replace("_", " "))
+        })
+        println()
       }
     }
+    if (arg1) printStream(Converter.CAEToPTTs(tokens, ChunkedBinaryExtraction.ARG1))
+    if (arg2) printStream(Converter.CAEToPTTs(tokens, ChunkedBinaryExtraction.ARG2))
   }
 
   /*
@@ -67,7 +63,10 @@ object WNMain {
    * @returns a map from accepted arguments to their values.
    */
   def mapArgs(args: Array[String]): OptionMap = {
-    if (args.length == 0) println(usage)
+    if (args.length == 0) {
+      println(usage)
+      exit
+    }
 
     val arglist = args.toList
     type OptionMap = Map[Symbol, Any]
@@ -83,11 +82,13 @@ object WNMain {
           nextOption(map ++ Map('s -> value.toInt), tail)
         case "-mh" :: value :: tail =>
           nextOption(map ++ Map('mh -> value.toInt), tail)
-        case string :: index1 :: index2 :: tail =>
+        case "-a1" :: tail =>
+          nextOption(map ++ Map('a1 -> true), tail)
+        case "-a2" :: tail =>
+          nextOption(map ++ Map('a2 -> true), tail)
+        case string :: tail =>
           nextOption(
-            map ++ Map('sentence -> string) ++
-              Map('index1 -> index1.toInt) ++
-              Map('index2 -> index2.toInt),
+            map ++ Map('sentence -> string),
             tail)
         case _ => map
       }
