@@ -81,7 +81,7 @@ object JwiTools {
        */
       def findNoun(toSearch: Seq[PostaggedToken]): String = {
         val strings = toSearch.map(token => token.string)
-        val stemmedWord = stem(strings.mkString(" "), 0)
+        val stemmedWord = stem(strings.mkString(" "), n)
         val idxWord = dict.getIndexWord(stemmedWord, POS.NOUN)
         if (idxWord == null) {
           // wasn't found in WordNet. if toSearch is a single noun n
