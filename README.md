@@ -14,8 +14,11 @@ Note that -s and -mh default to 0 and 3, respectively, but -a1 and -a2 must be s
 Note that "sentence" must be a complete English sentence containing a binary relationship (containing a noun subject, a verb relationship, and a noun subject). 
 
 Sample inputs: 
+
     "-s 0 -mh 4 -a1 "The moment of inertia is a physics concept.""
+
     "-s 0 -mh 1 -a1 -a2 "Newton's law of motion has been around for centuries."" 
+
 
 Options:
 
