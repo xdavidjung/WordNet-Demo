@@ -56,6 +56,7 @@ object WNMain {
         })
         println()
       }
+      println()
     }
     if (arg1) printStream(Converter.CAEToPTTs(tokens, ChunkedBinaryExtraction.ARG1))
     if (arg2) printStream(Converter.CAEToPTTs(tokens, ChunkedBinaryExtraction.ARG2))
