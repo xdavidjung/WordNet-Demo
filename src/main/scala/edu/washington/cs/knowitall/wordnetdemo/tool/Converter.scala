@@ -26,11 +26,11 @@ object Converter {
               else throw new IllegalArgumentException
               
     val tags = cae.getPosTags.iterator
-    val offsets = cae.getOffsets.iterator
+    // val offsets = cae.getOffsets.iterator
     val sentence = cae.getText.split(" ")
     
     // bit of a hack because we give each token an offset of 0.
-    sentence.map(token => new PostaggedToken(tags.next, token, offsets.next.getStart))
+    sentence.map(token => new PostaggedToken(tags.next, token, 0))
   }
   
 }
