@@ -47,8 +47,8 @@ object WNMain {
         return
       }
       
-      for (i <- 1 to hypHeight - 1) {
-        print("Height "+ i +": ")
+      for (i <- 0 to hypHeight - 1) {
+        print("Height "+ (i + 1) +": ")
         stream(i).foreach(synset => {
           val strings = synset.getWords.asScala.map(s => s.getLemma)
           print(strings.mkString(", ").replace("_", " "))
