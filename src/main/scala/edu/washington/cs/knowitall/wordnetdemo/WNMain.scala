@@ -8,30 +8,48 @@ import edu.washington.cs.knowitall.nlp.extraction.ChunkedBinaryExtraction
 import edu.washington.cs.knowitall.tool.chunk.{ OpenNlpChunker, ChunkedToken }
 import edu.washington.cs.knowitall.tool.postag.PostaggedToken
 import edu.mit.jwi.morph.WordnetStemmer
+import edu.mit.jwi.Dictionary
 
 
 object WNMain {
   
-  val usage = "[-s] [-mh] [-a1] [-a2] sentence"
+  val usage = "[-s] [-mh] [-a1] [-a2] [-wn] sentence"
   val defaultSense = 0
   val defaultHeight = 3
   type OptionMap = Map[Symbol, Any]
 
-  val dict = WNDictionary.fetchDictionary()
-  val stemmer = new WordnetStemmer(dict)
+  var jwi: JwiTools = null
+  var dict: Dictionary = null
+  var stemmer: WordnetStemmer = null
   val reverb = new ReVerbExtractor()
   
   def main(args: Array[String]) {
 
     // parse args
     val argsMap = mapArgs(args)
+    
+    // if the user passes in a directory, dictionary will be set to it; else empty
+    val dictionary = if (!argsMap.contains('wn)) ""
+                     else argsMap.get('wn).get.toString
+    
+    jwi = new JwiTools(dictionary)
+    dict = jwi.dict
+    stemmer = jwi.stemmer
+    
+    // the sentence to tokenize and get args from
     val sentence = argsMap.get('sentence).get.toString
+    
+    // the sense index to fetch from wordnet
     val sense = if (!argsMap.contains('s)) defaultSense
                 else argsMap.get('s).get.asInstanceOf[Int]
+    
+    // how many levels of hypernyms to fetch
     val hypHeight = if (!argsMap.contains('mh)) defaultHeight 
                     else argsMap.get('mh).get.asInstanceOf[Int] + 1
-    val arg1 = argsMap.contains('a1)
-    val arg2 = argsMap.contains('a2)
+                    
+    // whether to get hypernyms for arg1, arg2
+    val useArg1 = argsMap.contains('a1)
+    val useArg2 = argsMap.contains('a2)
 
     val reverb = new ReVerbExtractor
     val tokens = reverb.extractFromString(sentence).iterator.next
@@ -41,7 +59,7 @@ object WNMain {
      */
     def printStream(tokens: Seq[PostaggedToken]): Unit = {
       
-      val stream = JwiTools.posTokensToHypernymStream(tokens, sense) take hypHeight
+      val stream = jwi.posTokensToHypernymStream(tokens, sense) take hypHeight
       if (stream == Stream(Set())) {
         println("Noun not found.")
         return
@@ -58,8 +76,8 @@ object WNMain {
       }
       println()
     }
-    if (arg1) printStream(Converter.CAEToPTTs(tokens, ChunkedBinaryExtraction.ARG1))
-    if (arg2) printStream(Converter.CAEToPTTs(tokens, ChunkedBinaryExtraction.ARG2))
+    if (useArg1) printStream(Converter.CAEToPTTs(tokens, ChunkedBinaryExtraction.ARG1))
+    if (useArg2) printStream(Converter.CAEToPTTs(tokens, ChunkedBinaryExtraction.ARG2))
   }
 
   /*
@@ -93,6 +111,8 @@ object WNMain {
           nextOption(map ++ Map('a1 -> true), tail)
         case "-a2" :: tail =>
           nextOption(map ++ Map('a2 -> true), tail)
+        case "-wn" :: value :: tail =>
+          nextOption(map ++ Map('wn -> value.toString), tail)
         case string :: tail =>
           nextOption(
             map ++ Map('sentence -> string),
