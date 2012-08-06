@@ -8,6 +8,24 @@ object WNDictionary {
 
   /* Gets a WordNet dictionary.
    *
+   * @param wnhome the location of a directory on the local drive 
+   *               containing the wndictionary.
+   * @requires wnhome is the base directory of the wndictionary
+   * @returns an opened dictionary object.
+   */
+  def fetchDictionary(wnhome: String): Dictionary = {
+
+    val path = wnhome + "/dict"
+    val url = new URL("file", null, path)
+
+    val dict = new Dictionary(url)
+    val success = dict.open()
+    if (success) dict else throw new FileNotFoundException()
+    return dict;
+  }
+  
+  /* Gets a WordNet dictionary.
+   *
    * @requires there to be a environment variable WNHOME that maps to
    *           a directory containing the dictionary.
    * @returns an opened dictionary object.
