@@ -16,12 +16,28 @@ import edu.washington.cs.knowitall.tool.postag.PostaggedToken
 /** This class holds a few methods that allow for easy access to the WordNet
  * database using the JWI library. 
  */
-object JwiTools {
-
-  /** Dict is an opened JWI dictionary object. */
-  val dict = WNDictionary.fetchDictionary()
+class JwiTools {
+  
+  /** Dict is a JWI dictionary object. */
+  var dict: Dictionary = null
   /** Stemmer is a JWI WordnetStemmer object. */
-  val stemmer = new WordnetStemmer(dict)
+  var stemmer: WordnetStemmer = null
+  
+  def this(wnhome: String) {
+    this
+    setWNResources(wnhome)
+  }
+  
+  def setWNResources(wnhome: String) {
+    if (wnhome != "") {
+    dict = WNDictionary.fetchDictionary(wnhome)
+    } else {
+      dict = WNDictionary.fetchDictionary()
+    }
+    stemmer = new WordnetStemmer(dict)
+  
+  }
+
   
   /** Takes a sequence of postagged tokens, determines the subject from the
     * tokens, and returns a stream of the subject's nth sense from WordNet.
