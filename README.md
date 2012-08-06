@@ -7,7 +7,7 @@ The main class can be found in src/main/scala/edu/washington/cs/WNMain.scala.
 
 ## Usage
 
-"[-s] [-mh] [-a1] [-a2] sentence"
+"[-s] [-mh] [-a1] [-a2] [-wn] sentence"
 
 Note that -s and -mh default to 0 and 3, respectively, but -a1 and -a2 must be specified. If they are both specified, types for argument one are returned first, followed by the types for argument 2. 
 
@@ -42,3 +42,7 @@ Options:
 
     -a2        Whether to return types for the second argument in the binary
                relationship extracted.
+
+    -wn	       Specify the base directory of the WordNet installation. If not 
+               specified, assumes a system variable 'WNHOME' is in place that
+               points to the base directory of the WordNet installation. 
